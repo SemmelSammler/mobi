@@ -1,6 +1,6 @@
 // Service Worker: App-Hülle vorab cachen, danach „Cache zuerst, im Hintergrund auffrischen“.
 // WICHTIG: Bei jeder Änderung an Dateien VERSION erhöhen, sonst sehen installierte Apps alte Stände.
-const VERSION = 'mobi-v6.2.0';
+const VERSION = 'mobi-v6.2.1';
 const SHELL = [
   '/',
   '/css/app.css',
