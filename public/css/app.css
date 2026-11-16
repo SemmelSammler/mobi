@@ -259,6 +259,35 @@ button.chip { cursor: pointer; }
 @keyframes pop { from { transform: scale(.6); opacity: 0; } }
 .done-h { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
 
+/* ---------- Kein seitliches Verrutschen ---------- */
+html, body { overflow-x: hidden; overscroll-behavior-x: none; max-width: 100%; }
+body { overscroll-behavior-y: none; }
+#app { overflow-x: clip; touch-action: pan-y; }
+#main, .view, .card, .hero, .row, .field, .list, .stack { min-width: 0; max-width: 100%; }
+.dual > *, .sets > *, .stats > *, .dose > *, .phases > *, .mm-wrap > *, .plan-row > *, .wk-row > * { min-width: 0; }
+.dual { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.sel, .input { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+#sheet { overflow-x: hidden; touch-action: pan-y; }
+.overlay { overflow-x: hidden; touch-action: pan-y; }
+.chip-scroll { touch-action: pan-x; overscroll-behavior-x: contain; }
+
+/* ---------- Wochenstruktur ---------- */
+.wk-row, .wk-head { display: grid; grid-template-columns: 26px minmax(0, 1.25fr) minmax(0, 1fr) 54px; gap: 6px; align-items: center; }
+.wk-head { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.wk-row .pd { font-weight: 650; font-size: 13.5px; }
+.wk-row .sel, .wk-row .input { min-height: 42px; font-size: 13.5px; padding-left: 9px; }
+.wk-row .sel { padding-right: 22px; background-position: calc(100% - 13px) 18px, calc(100% - 8px) 18px; }
+.wk-row .input { padding: 0 4px; text-align: center; }
+.wk-row .input:disabled { opacity: .35; }
+.day .pls { display: flex; gap: 2px; height: 4px; }
+.day .pls .pl { width: 9px; }
+
+.km-bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; height: 86px; }
+.km-bars div { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 5px; height: 100%; }
+.km-bars i { width: 100%; border-radius: 6px; background: var(--surface-2); min-height: 4px; }
+.km-bars i.now { background: var(--good); }
+.km-bars span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+
 /* ---------- Trainings-Logger ---------- */
 .w-head { position: sticky; top: 0; z-index: 5; background: var(--app); margin: 0 -18px; padding: 8px 18px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .w-clock { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }

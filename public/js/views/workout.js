@@ -3,7 +3,7 @@ import { $, $$, esc, ICON, chime, emit, openSheet, closeSheet, thumb, hydrateThu
 import { byId, EQUIP, muscleNames } from '../data/index.js';
 import { getSettings, setActive } from '../store.js';
 import { getActive, startWorkout, finishWorkout, addExercise, replaceExercise, sessionStats, alternatives, fmtKg, fmtDuration } from '../training.js';
-import { openExercise, pickExercise } from './uebungen.js';
+import { openExercise, pickExercise, openReplace } from './uebungen.js';
 
 let session = null;
 let clockTimer = null;
@@ -79,7 +79,7 @@ function card(it, i) {
       <span class="hd">#</span><span class="hd">Letztes Mal</span><span class="hd">${ex.bw ? 'Zusatz' : 'kg'}</span><span class="hd">${ex.unit === 'sek' ? 'Sek.' : 'Wdh.'}</span><span class="hd"></span>
       ${it.sets.map((_, si) => setRow(it, i, si)).join('')}
     </div>
-    <div class="w-actions"><button data-addset="${i}">+ Satz</button>${it.sets.length > 1 ? `<button data-delset="${i}">− Satz</button>` : ''}</div>
+    <div class="w-actions"><button data-addset="${i}">+ Satz</button>${it.sets.length > 1 ? `<button data-delset="${i}">− Satz</button>` : ''}<button data-swap="${i}">${ICON.swap} Übung ersetzen</button></div>
   </div>`;
 }
 
@@ -152,6 +152,11 @@ function wire() {
     }
     const del = t.closest('[data-delset]');
     if (del) { session.items[del.dataset.delset].sets.pop(); save(); return renderWorkout(); }
+    const sw = t.closest('[data-swap]');
+    if (sw) {
+      const k = Number(sw.dataset.swap);
+      return openReplace(session.items[k].ex, { onPick: (id) => { replaceExercise(session, k, id); renderWorkout(); toast('Übung ersetzt'); } });
+    }
     const menu = t.closest('[data-menu]');
     if (menu) return itemMenu(Number(menu.dataset.menu));
   };

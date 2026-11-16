@@ -67,6 +67,13 @@ export function getHistory() {
       h[key] = { morgen: h[key] };
       migrated = true;
     }
+    // v6.0: eine Ausdauer-Einheit pro Tag (sport) → mehrere, nach Art (sports)
+    if (h[key] && h[key].sport) {
+      const { type, ...rest } = h[key].sport;
+      h[key].sports = { ...(h[key].sports || {}), [type || 'laufen']: rest };
+      delete h[key].sport;
+      migrated = true;
+    }
   }
   if (migrated) lsSet(H_KEY, JSON.stringify(h));
   return h;
@@ -85,15 +92,46 @@ export function markDone(dateKey, minutes, kind = 'morgen', exercises = []) {
   lsSet(H_KEY, JSON.stringify(h));
 }
 
-// Ausdauer-Einheit (Laufen/Rad/…) eintragen oder wieder entfernen. details: { km, min }
-export function setSport(dateKey, type, details = null) {
+// Ausdauer-Einheit eintragen (details = { km, min, run }) oder mit details = null entfernen.
+export function setSport(dateKey, type, details = {}) {
   const h = getHistory();
   const day = h[dateKey] || {};
-  if (!type) delete day.sport;
-  else day.sport = { type, at: Date.now(), ...(details || {}) };
+  const sports = { ...(day.sports || {}) };
+  if (details === null) delete sports[type];
+  else sports[type] = { at: Date.now(), ...details };
+  if (Object.keys(sports).length) day.sports = sports; else delete day.sports;
   if (Object.keys(day).length) h[dateKey] = day; else delete h[dateKey];
   lsSet(H_KEY, JSON.stringify(h));
-  return Boolean(day.sport);
+}
+
+export const sportsOf = (day) => Object.entries(day?.sports || {}).map(([type, v]) => ({ type, ...v }));
+
+// ---------- Wochenstruktur ----------
+// Je Wochentag: { gym, unit, run, km, other }. Mehreres am selben Tag ist erlaubt (z. B. Studio + Lauf).
+// unit = feste Einheit des Plans für diesen Tag ('' = Rotation), run = Laufart, other = rad | schwimmen.
+export const RUN_TYPES = {
+  locker: { short: 'Locker', name: 'Lockerer Lauf', hint: 'Ruhiges Tempo, du kannst dich dabei unterhalten.' },
+  tempo: { short: 'Tempo', name: 'Tempolauf', hint: 'Zügig, aber gleichmäßig — „angenehm hart“.' },
+  intervalle: { short: 'Intervalle', name: 'Intervalle', hint: 'Schnelle Abschnitte mit Trabpausen.' },
+  lang: { short: 'Lang', name: 'Langer Lauf', hint: 'Länger als sonst, bewusst langsam.' }
+};
+
+export function dayPlan(settings, wd) {
+  const v = settings.weekPlan?.[wd];
+  const base = { gym: false, unit: '', run: '', km: '', other: '' };
+  if (v && typeof v === 'object') return { ...base, ...v };
+  // Altformat: ein Wort pro Tag
+  if (v === 'gym') return { ...base, gym: true };
+  if (v === 'laufen') return { ...base, run: 'locker' };
+  if (v === 'rad' || v === 'schwimmen') return { ...base, other: v };
+  return base;
+}
+
+export function setDayPlan(wd, patch) {
+  const s = getSettings();
+  const wp = { ...(s.weekPlan || {}) };
+  wp[wd] = { ...dayPlan(s, wd), ...patch };
+  setSetting('weekPlan', wp);
 }
 
 // Studio-Einheit im Kalender vermerken (die Details liegen in mobi.workouts).
@@ -186,7 +224,7 @@ export function isDone(dateKey, kind) {
 
 function sessionsOfDay(day) {
   if (!day) return 0;
-  return (day.morgen ? 1 : 0) + (day.abend ? 1 : 0) + (day.kraft ? 1 : 0) + (day.gym?.count || 0) + (day.sport ? 1 : 0) + (day.zwischendurch?.count || 0);
+  return (day.morgen ? 1 : 0) + (day.abend ? 1 : 0) + (day.kraft ? 1 : 0) + (day.gym?.count || 0) + Object.keys(day.sports || {}).length + (day.zwischendurch?.count || 0);
 }
 
 export function totalSessions() {
@@ -211,7 +249,7 @@ export function shiftDay(dateKey, delta) {
 // Serie: zusammenhängende Tage mit mindestens einer Einheit (Routine, Studio oder Ausdauer)
 // bis heute (heute zählt, sobald erledigt — sonst ab gestern rückwärts).
 export function routineDone(day) {
-  return Boolean(day && (day.morgen || day.abend || day.kraft || day.gym || day.sport));
+  return Boolean(day && (day.morgen || day.abend || day.kraft || day.gym || Object.keys(day.sports || {}).length));
 }
 
 export function streak(todayKeyStr) {

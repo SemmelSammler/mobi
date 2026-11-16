@@ -177,6 +177,24 @@ export function openExercise(id, opts = {}) {
   });
 }
 
+// ---------- Übung ersetzen: ähnliche Vorschläge oder freie Suche ----------
+export function openReplace(exId, { onPick, onCancel } = {}) {
+  const ex = byId(exId);
+  const alts = alternatives(exId, 6);
+  let picked = false;
+  const choose = (id) => { picked = true; closeSheet(); onPick(id); };
+  openSheet(`
+    <div class="stack gap-4" style="padding-right:44px;"><span class="eyebrow">Ersetzen</span><h2 class="h2">${esc(ex.name)}</h2></div>
+    <span class="sec-l">Ähnliche Übungen · gleicher Zielmuskel</span>
+    <div class="list">${alts.map((a) => `<div class="row" style="padding-right:8px;"><button class="grow" data-rep="${a.id}" style="display:flex;align-items:center;gap:12px;">${thumb(a.id)}<span class="grow"><span class="t">${esc(a.name)}</span><span class="s">${esc(muscleNames(a.primary).join(', '))} · ${esc(EQUIP[a.equip])}</span></span></button><button class="icon-btn clear" data-info="${a.id}" aria-label="Details">${ICON.info}</button></div>`).join('') || '<div class="empty">Keine direkten Alternativen.</div>'}</div>
+    <button class="btn ghost" id="rp-free">${ICON.search} Frei aus allen Übungen wählen</button>`, (sh) => {
+    for (const b of $$('[data-rep]', sh)) b.onclick = () => choose(b.dataset.rep);
+    for (const b of $$('[data-info]', sh)) b.onclick = () => { picked = true; openExercise(b.dataset.info, { onPick, pickLabel: 'Diese Übung wählen' }); };
+    $('#rp-free', sh).onclick = () => { picked = true; pickExercise({ title: 'Ersetzen durch', preferGroup: ex.group, onPick }); };
+    return () => { if (!picked && onCancel) setTimeout(() => { if ($('#sheet-backdrop').classList.contains('hidden')) onCancel(); }, 0); };
+  });
+}
+
 // ---------- Übungsauswahl (für Plan und Training) ----------
 export function pickExercise({ title = 'Übung wählen', preferGroup = '', onPick }) {
   const st = { q: '', group: preferGroup };

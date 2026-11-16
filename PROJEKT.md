@@ -1,6 +1,6 @@
 # mobi — Training & Beweglichkeit
 
-Version 6.0 · PWA auf Cloudflare Workers (reine statische Auslieferung, kein Server-Code)
+Version 6.1 · PWA auf Cloudflare Workers (reine statische Auslieferung, kein Server-Code)
 
 > **Herkunft:** Version 5 wurde am 16.11.2026 aus der Live-Version
 > (https://mobi.bonni-jason.workers.dev) rekonstruiert, weil der Quellcode lokal fehlte.
@@ -45,6 +45,7 @@ tests/
   check-data.mjs             Datenprüfung (Pflichtfelder, IDs, Posen, Plan-Verweise)
   test-logic.mjs             Logiktests (Rotation, Progression, Rekorde, Sicherung)
   shot.cjs, scenarios.cjs    Browser-Durchläufe mit Screenshots (Playwright)
+  flow61.cjs                 prüft Überlauf bei 320/375/430 px, Lauf im Plan, Verschieben, Ersetzen
   seed.json                  Beispieldaten für die Durchläufe
 wrangler.jsonc               Worker-Konfiguration (nur Static Assets)
 ```
@@ -62,8 +63,8 @@ Alles läuft im Browser. Es gibt keine API und keine externen Abrufe; nur die Li
 ## Speicherung (nur lokal, `localStorage`)
 | Schlüssel | Inhalt |
 |---|---|
-| `mobi.settings` | Name, Thema, Dauern, Ton, Fokustage, Wochenstruktur |
-| `mobi.history` | je Tag: Routinen, Studio-Zähler, Ausdauer-Einheit (km, min) |
+| `mobi.settings` | Name, Thema, Dauern, Ton, Fokustage, Wochenstruktur (je Wochentag: Studio, feste Einheit, Laufart, km) |
+| `mobi.history` | je Tag: Routinen, Studio-Zähler, Ausdauer-Einheiten nach Art (km, min, Laufart) |
 | `mobi.plan` | aktiver Trainingsplan mit Einheiten, Übungen, Sätzen, Rotationszeiger |
 | `mobi.workouts` | alle geloggten Trainings mit Sätzen (Gewicht × Wiederholungen) |
 | `mobi.active` | laufendes Training (übersteht Neuladen und App-Wechsel) |
@@ -117,4 +118,4 @@ Vor dem Deploy prüfen:
 - Geräte-Abgleich (Sync) und Konto
 - Geräteliste des eigenen Studios (aktuell: übliche Vollausstattung angenommen)
 - Aufwärmsätze, Supersätze und Notizen im Logger
-- Laufen bisher nur als einfacher Eintrag (Strecke, Dauer)
+- Laufen: Plan je Wochentag und Eintrag (Art, Strecke, Dauer), aber noch kein Lauf-Trainingsplan mit Steigerung

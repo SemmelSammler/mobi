@@ -1,12 +1,12 @@
 // Verlauf: Kennzahlen, Kalender, Wochenvolumen, Trainings, Kraftwerte, Beweglichkeits-Check.
 import { $, $$, esc, ICON, emit, openSheet, closeSheet, sparkline, fmtDay, fmtNum, toast, ACTIVITIES } from '../ui.js';
 import { todayKey } from '../routine.js';
-import { getHistory, streak, getWorkouts, getAssessments, saveAssessment, getSettings } from '../store.js';
+import { getHistory, streak, getWorkouts, getAssessments, saveAssessment, sportsOf, routineDone, shiftDay, RUN_TYPES } from '../store.js';
 import { byId } from '../data/index.js';
 import { weeklySets, mondayOf, workoutsInWeek, exerciseHistory, deleteWorkout, dateKeyOf, fmtKg, fmtDuration } from '../training.js';
 import { volumeBars } from './training.js';
 import { openExercise } from './uebungen.js';
-import { openSport } from './heute.js';
+import { openSport, sportDetail } from './heute.js';
 
 let calOffset = 0;
 
@@ -82,17 +82,15 @@ function openDayDetail(key) {
   for (const [k, label] of [['morgen', 'Morgenroutine'], ['abend', 'Abendroutine'], ['kraft', 'Endgrad-Kraft']]) if (day[k]) rows.push(`<div class="row"><span class="tile">${ICON.sun}</span><span class="grow"><span class="t">${label}</span><span class="s">${day[k].minutes} min</span></span></div>`);
   if (day.zwischendurch?.count) rows.push(`<div class="row"><span class="tile">${ICON.loop}</span><span class="grow"><span class="t">Zwischendurch</span><span class="s">${day.zwischendurch.count}×</span></span></div>`);
   for (const w of ws) rows.push(`<button class="row" data-w="${w.id}"><span class="tile accent">${ICON.dumbbell}</span><span class="grow"><span class="t">${esc(w.name)}</span><span class="s">${fmtDuration(w.end - w.start)} · ${w.items.length} Übungen</span></span>${ICON.chev}</button>`);
-  if (day.sport) rows.push(`<button class="row" data-sport="${day.sport.type}"><span class="tile good">${ICON.pulse}</span><span class="grow"><span class="t">${ACTIVITIES[day.sport.type] || 'Ausdauer'}</span><span class="s">${[day.sport.km ? String(day.sport.km).replace('.', ',') + ' km' : '', day.sport.min ? day.sport.min + ' min' : ''].filter(Boolean).join(' · ') || 'erledigt'}</span></span>${ICON.chev}</button>`);
-  const planned = getSettings().weekPlan?.[new Date(...key.split('-').map((v, i) => (i === 1 ? v - 1 : Number(v)))).getDay()];
-  const canAdd = !day.sport && key <= todayKey();
+  for (const sp of sportsOf(day)) rows.push(`<button class="row" data-sport="${sp.type}"><span class="tile good">${ICON.pulse}</span><span class="grow"><span class="t">${sp.type === 'laufen' && sp.run ? RUN_TYPES[sp.run]?.name || 'Laufen' : ACTIVITIES[sp.type] || 'Ausdauer'}</span><span class="s">${sportDetail(sp) || 'erledigt'}</span></span>${ICON.chev}</button>`);
+  const missing = key <= todayKey() ? ['laufen', 'rad', 'schwimmen'].filter((t) => !day.sports?.[t]) : [];
   openSheet(`
     <h2 class="h2" style="padding-right:44px;">${fmtDay(key, { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
     <div class="list">${rows.join('') || '<div class="empty">An diesem Tag ist nichts eingetragen.</div>'}</div>
-    ${canAdd ? `<button class="btn ghost" id="d-run">${ICON.plus} Ausdauer-Einheit eintragen</button>` : ''}`, (sh) => {
+    ${missing.length ? `<span class="sec-l">Nachtragen</span><div class="chips">${missing.map((t) => `<button class="chip" data-add="${t}">+ ${ACTIVITIES[t]}</button>`).join('')}</div>` : ''}`, (sh) => {
     for (const b of $$('[data-w]', sh)) b.onclick = () => openWorkoutDetail(b.dataset.w);
     for (const b of $$('[data-sport]', sh)) b.onclick = () => openSport(b.dataset.sport, key);
-    const add = $('#d-run', sh);
-    if (add) add.onclick = () => openSport(planned && !['gym', 'ruhe'].includes(planned) ? planned : 'laufen', key);
+    for (const b of $$('[data-add]', sh)) b.onclick = () => openSport(b.dataset.add, key);
   });
 }
 
@@ -114,7 +112,7 @@ export function render() {
   for (let d = 1; d <= daysInMonth; d++) {
     const key = `${prefix}-${String(d).padStart(2, '0')}`;
     const day = hist[key] || {};
-    const dots = `${day.morgen || day.abend || day.kraft ? '<i class="d-mob"></i>' : ''}${day.gym ? '<i class="d-gym"></i>' : ''}${day.sport ? '<i class="d-run"></i>' : ''}`;
+    const dots = `${day.morgen || day.abend || day.kraft ? '<i class="d-mob"></i>' : ''}${day.gym ? '<i class="d-gym"></i>' : ''}${Object.keys(day.sports || {}).length ? '<i class="d-run"></i>' : ''}`;
     cells += `<button class="cal-cell${key === tKey ? ' today' : ''}" data-date="${key}" aria-label="${d}."><span>${d}</span><span class="dots">${dots}</span></button>`;
   }
   // Kraftwerte: Übungen mit den meisten Einträgen
@@ -129,7 +127,17 @@ export function render() {
     const best = Math.max(...series);
     return `<button class="row" data-ex="${id}"><span class="grow"><span class="t">${esc(ex.name)}</span><span class="s">${h.length} ${h.length === 1 ? 'Einheit' : 'Einheiten'}</span></span>${sparkline(series, 80, 26)}<span class="num" style="font-weight:650;min-width:62px;text-align:right;">${weighted ? fmtKg(Math.round(best * 2) / 2) + ' kg' : best}</span></button>`;
   }).join('');
-  const total = Object.values(hist).filter((d) => d.morgen || d.abend || d.kraft || d.gym || d.sport).length;
+  const total = Object.values(hist).filter(routineDone).length;
+  // Laufen: Kilometer je Woche (letzte 6 Wochen) und die letzten Läufe
+  const runs = Object.entries(hist).filter(([, d]) => d.sports?.laufen).map(([k, d]) => ({ key: k, ...d.sports.laufen })).sort((a, b) => (a.key < b.key ? 1 : -1));
+  const weeksKm = [5, 4, 3, 2, 1, 0].map((n) => { const start = shiftDay(week, -7 * n), end = shiftDay(start, 7); return runs.filter((r) => r.key >= start && r.key < end).reduce((sum, r) => sum + (Number(r.km) || 0), 0); });
+  const kmNow = weeksKm[5], kmMax = Math.max(1, ...weeksKm);
+  const runsWeek = runs.filter((r) => r.key >= week).length;
+  const runCard = `<div class="card stack gap-12">
+      <div class="row-between"><div class="stack gap-4"><span class="h3">Laufen</span><span class="meta">${runsWeek} ${runsWeek === 1 ? 'Lauf' : 'Läufe'} diese Woche</span></div><div class="stack" style="text-align:right;"><span class="num" style="font-size:22px;font-weight:700;">${String(Math.round(kmNow * 10) / 10).replace('.', ',')} km</span><span class="meta">seit Montag</span></div></div>
+      <div class="km-bars">${weeksKm.map((v, i) => `<div><i style="height:${Math.round(4 + (v / kmMax) * 56)}px" class="${i === 5 ? 'now' : ''}"></i><span>${i === 5 ? 'jetzt' : `-${5 - i} W.`}</span></div>`).join('')}</div>
+      ${runs.length ? `<div class="stack gap-8">${runs.slice(0, 4).map((r) => `<button class="row-between" data-date="${r.key}" style="width:100%;"><span class="meta">${fmtDay(r.key)} · ${esc(RUN_TYPES[r.run]?.name || 'Lauf')}</span><span class="num" style="font-size:13.5px;font-weight:600;">${esc(sportDetail(r) || 'erledigt')}</span></button>`).join('')}</div>` : '<div class="empty" style="padding:4px;">Noch kein Lauf eingetragen.</div>'}
+    </div>`;
   root.innerHTML = `
     <h1 class="h1">Verlauf</h1>
     <div class="stats">
@@ -146,6 +154,7 @@ export function render() {
       <div class="stack gap-4"><span class="h3">Wochenvolumen</span><span class="meta">Harte Sätze pro Muskelgruppe seit Montag. Hilfsmuskeln zählen halb. Grüner Bereich: 10–20 Sätze.</span></div>
       ${weekW.length ? volumeBars(weeklySets(week, workouts)) : '<div class="empty" style="padding:8px;">Diese Woche noch kein Training geloggt.</div>'}
     </div>
+    ${runCard}
     <div class="stack gap-8"><span class="eyebrow">Letzte Trainings</span>
       <div class="list">${workouts.slice(-5).reverse().map((w) => `<button class="row" data-w="${w.id}"><span class="tile accent">${ICON.dumbbell}</span><span class="grow"><span class="t">${esc(w.name)}</span><span class="s">${fmtDay(dateKeyOf(w.start))} · ${fmtDuration(w.end - w.start)} · ${w.items.reduce((n, it) => n + it.sets.length, 0)} Sätze</span></span>${w.prs ? `<span class="badge good">${ICON.trophy} ${w.prs}</span>` : ''}${ICON.chev}</button>`).join('') || '<div class="card flat empty">Dein erstes Training erscheint hier.</div>'}</div>
     </div>
