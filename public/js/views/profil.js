@@ -78,7 +78,7 @@ export function render() {
     </div>
     <button class="row" id="btn-science"><span class="tile accent">${ICON.flask}</span><span class="grow"><span class="t">Hintergrund & Wissenschaft</span><span class="s">Warum mobi so trainiert, mit Quellen</span></span>${ICON.chev}</button>
     <div class="card flat stack gap-8"><span class="h3">Als App installieren</span><span class="meta" style="line-height:1.5;">iPhone: in Safari <b>Teilen → Zum Home-Bildschirm</b>. Android: Menü → <b>App installieren</b>. Danach läuft mobi wie eine normale App — auch offline.</span></div>
-    <div class="meta center">mobi 6.1 · ${EXERCISES.length} Übungen (${GYM.length} Kraft, ${MOBILITY.length} Mobility)</div>`;
+    <div class="meta center">mobi 6.2 · ${EXERCISES.length} Übungen (${GYM.length} Kraft, ${MOBILITY.length} Mobility)</div>`;
 
   $('#f-name').onchange = (e) => { setSetting('name', e.target.value.trim() || 'Athlet'); emit('change'); };
   const segBind = (id, key, num = true) => { $(id).onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; setSetting(key, num ? Number(b.dataset.v) : b.dataset.v); if (key === 'theme') applyTheme(); emit('change'); }; };

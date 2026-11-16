@@ -1,6 +1,6 @@
 # mobi — Training & Beweglichkeit
 
-Version 6.1 · PWA auf Cloudflare Workers (reine statische Auslieferung, kein Server-Code)
+Version 6.2 · PWA auf Cloudflare Workers (reine statische Auslieferung, kein Server-Code)
 
 > **Herkunft:** Version 5 wurde am 16.11.2026 aus der Live-Version
 > (https://mobi.bonni-jason.workers.dev) rekonstruiert, weil der Quellcode lokal fehlte.

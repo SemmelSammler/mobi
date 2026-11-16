@@ -1,5 +1,5 @@
 // Trainingsplan: Einheiten ordnen und bearbeiten, Plan wechseln, Wochenstruktur mit Studio und Laufen.
-import { $, $$, esc, ICON, emit, openSheet, closeSheet, thumb, toast, WD, WEEK_ORDER } from '../ui.js';
+import { $, $$, esc, ICON, emit, openSheet, closeSheet, thumb, toast, WD, WEEK_ORDER, dragHandle, makeSortable, arrayMove } from '../ui.js';
 import { byId, muscleNames } from '../data/index.js';
 import { PROGRAMS, GOALS, programById } from '../data/programs.js';
 import { getSettings, getPlan, savePlan, dayPlan, setDayPlan, RUN_TYPES } from '../store.js';
@@ -54,14 +54,13 @@ export function render() {
       <button class="btn small ghost" data-act="switch">Plan wechseln</button></div>
     ${active ? `<div class="hero dark"><span class="eyebrow">Training läuft</span><div class="hero-title">${esc(active.name)}</div><button class="btn light" data-act="resume">${ICON.play} Fortsetzen</button></div>` : ''}
     <div class="stack gap-8">
-      <div class="row-between"><span class="eyebrow">Dein Plan</span><span class="meta">Pfeile ändern die Reihenfolge</span></div>
-      <div class="list">${plan.days.map((d, i) => `<div class="row" style="padding-right:6px;">
+      <div class="row-between"><span class="eyebrow">Dein Plan</span><span class="meta">Am Griff ziehen zum Sortieren</span></div>
+      <div class="list" id="plan-days">${plan.days.map((d, i) => `<div class="row" data-sort style="padding-right:4px;">
         <button class="grow" data-day="${i}" style="display:flex;align-items:center;gap:12px;">
           <span class="tile ${i === idx ? 'accent' : ''}" style="font-weight:700;">${i + 1}</span>
           <span class="grow"><span class="t">${esc(d.name)}</span><span class="s">${i === idx ? 'Als Nächstes · ' : ''}${d.slots.length} Übungen · ca. ${dayDuration(d)} min</span></span>
         </button>
-        <button class="icon-btn clear" data-move="${i}:-1" aria-label="${esc(d.name)} nach oben" ${i === 0 ? 'disabled style="opacity:.25"' : ''}>${ICON.up}</button>
-        <button class="icon-btn clear" data-move="${i}:1" aria-label="${esc(d.name)} nach unten" ${i === plan.days.length - 1 ? 'disabled style="opacity:.25"' : ''}><span style="transform:rotate(180deg);display:block;">${ICON.up}</span></button>
+        ${dragHandle(d.name)}
       </div>`).join('')}</div>
       <div class="dual"><button class="btn ghost" data-act="addday">${ICON.plus} Einheit</button><button class="btn ghost" data-act="free">Freies Training</button></div>
     </div>
@@ -76,17 +75,8 @@ export function render() {
       ${volumeBars(plannedSets(plan))}
     </div>`;
   const root = $('#view-training');
+  makeSortable($('#plan-days'), moveDay);
   root.onclick = (e) => {
-    const mv = e.target.closest('[data-move]');
-    if (mv) {
-      const [i, dir] = mv.dataset.move.split(':').map(Number);
-      const p = getPlan(), j = i + dir;
-      if (j < 0 || j >= p.days.length) return;
-      const nextId = p.days[nextDayIndex(p)]?.id;
-      [p.days[i], p.days[j]] = [p.days[j], p.days[i]];
-      p.next = Math.max(0, p.days.findIndex((x) => x.id === nextId)); // „Als Nächstes“ bleibt dieselbe Einheit
-      savePlan(p); return emit('change');
-    }
     const day = e.target.closest('[data-day]');
     if (day) return openDay(Number(day.dataset.day));
     const b = e.target.closest('[data-act]');
@@ -111,6 +101,16 @@ export function render() {
   };
 }
 
+// Einheit im Plan verschieben. „Als Nächstes“ bleibt dieselbe Einheit.
+function moveDay(from, to) {
+  const p = getPlan();
+  if (to < 0 || to >= p.days.length) return;
+  const nextId = p.days[nextDayIndex(p)]?.id;
+  arrayMove(p.days, from, to);
+  p.next = Math.max(0, p.days.findIndex((x) => x.id === nextId));
+  savePlan(p); emit('change');
+}
+
 // Nur eine Einheit gleichzeitig: läuft schon eine, diese fortsetzen.
 function startGuard(fn) {
   if (getActive()) { toast('Es läuft bereits ein Training'); openWorkout(); return; }
@@ -125,9 +125,9 @@ function openDay(i) {
   const isNext = nextDayIndex(plan) === i;
   const slotRow = (sl, k) => {
     const ex = byId(sl.ex);
-    return `<div class="card flat stack gap-8" style="padding:12px;">
+    return `<div class="card flat stack gap-8" data-sort style="padding:12px;">
       <div class="w-ex"><button data-info="${ex.id}" aria-label="Details">${thumb(ex.id)}</button>
-        <button class="grow stack" data-info="${ex.id}"><span class="h3">${esc(ex.name)}</span><span class="meta">${esc(muscleNames(ex.primary).join(', '))}</span></button></div>
+        <button class="grow stack" data-info="${ex.id}"><span class="h3">${esc(ex.name)}</span><span class="meta">${esc(muscleNames(ex.primary).join(', '))}</span></button>${dragHandle(ex.name)}</div>
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
         <label class="field"><span class="label">Sätze</span><input class="input num" inputmode="numeric" data-k="${k}" data-f="sets" value="${sl.sets}"></label>
         <label class="field"><span class="label">${ex.unit === 'sek' ? 'Sek.' : 'Wdh.'} von</span><input class="input num" inputmode="numeric" data-k="${k}" data-f="min" value="${sl.reps[0]}"></label>
@@ -146,12 +146,15 @@ function openDay(i) {
     <span class="meta">${day.slots.length} Übungen · ca. ${dayDuration(day)} min</span>
     <button class="btn" id="d-start" ${day.slots.length ? '' : 'disabled'}>${ICON.play} Dieses Training starten</button>
     ${isNext ? '' : '<button class="btn ghost" id="d-next">Als nächste Einheit festlegen</button>'}
+    <div class="dual"><button class="btn line" id="d-up" ${i === 0 ? 'disabled' : ''}>${ICON.up} Einheit früher</button><button class="btn line" id="d-down" ${i === plan.days.length - 1 ? 'disabled' : ''}>Einheit später</button></div>
     <div class="list" id="d-slots">${day.slots.map(slotRow).join('') || '<div class="empty">Noch keine Übung in dieser Einheit.</div>'}</div>
     <button class="btn ghost" id="d-add">${ICON.plus} Übung hinzufügen</button>
     ${plan.days.length > 1 ? '<button class="btn danger" id="d-remove">Einheit löschen</button>' : ''}
   `, (sh) => {
     $('#d-name', sh).onchange = (e) => { day.name = e.target.value.trim() || `Einheit ${i + 1}`; save(); };
     $('#d-start', sh).onclick = () => { closeSheet(); startGuard(() => beginWorkout(getPlan(), i)); };
+    $('#d-up', sh).onclick = () => { moveDay(i, i - 1); openDay(i - 1); };
+    $('#d-down', sh).onclick = () => { moveDay(i, i + 1); openDay(i + 1); };
     const nx = $('#d-next', sh);
     if (nx) nx.onclick = () => { plan.next = i; save(); toast(`„${day.name}“ ist als Nächstes dran`); openDay(i); };
     $('#d-add', sh).onclick = () => pickExercise({ title: 'Übung hinzufügen', onPick: (id) => { day.slots.push(slotFor(id)); save(); openDay(i); } });
@@ -167,6 +170,7 @@ function openDay(i) {
       else sl.reps = [Math.min(sl.reps[0], v), v];
       save(); openDay(i);
     };
+    makeSortable($('#d-slots', sh), (from, to) => { arrayMove(day.slots, from, to); save(); openDay(i); });
     $('#d-slots', sh).onclick = (e) => {
       const t = e.target;
       const info = t.closest('[data-info]');

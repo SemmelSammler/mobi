@@ -260,7 +260,8 @@ button.chip { cursor: pointer; }
 .done-h { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
 
 /* ---------- Kein seitliches Verrutschen ---------- */
-html, body { overflow-x: hidden; overscroll-behavior-x: none; max-width: 100%; }
+html { overflow-x: hidden; overscroll-behavior-x: none; }
+body { overflow-x: clip; max-width: 100%; }
 body { overscroll-behavior-y: none; }
 #app { overflow-x: clip; touch-action: pan-y; }
 #main, .view, .card, .hero, .row, .field, .list, .stack { min-width: 0; max-width: 100%; }
@@ -347,3 +348,39 @@ body { overscroll-behavior-y: none; }
 /* Inhalte in scrollenden Spalten dürfen nicht zusammengedrückt werden. */
 #sheet > *, .overlay > .inner > * { flex-shrink: 0; }
 .stage:has(.phase-pill) { padding-bottom: 42px; }
+
+/* ---------- 6.2: Zoom-Fix, Kontraste, Tippflächen (aus dem Barrierefreiheits-Audit) ---------- */
+/* iOS vergrößert die Seite automatisch, wenn ein Eingabefeld kleiner als 16 px ist — deshalb überall 16 px. */
+input, select, textarea, .input, .sel, .wk-row .sel, .wk-row .input, .search .input { font-size: 16px; }
+#app, #sheet, .overlay { touch-action: manipulation; }
+/* Statusleiste: Inhalt scrollt nicht mehr sichtbar unter Uhrzeit und Akku durch. */
+#app::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: var(--app); z-index: 30; }
+
+:root { --muted: #6B6153; --faint: #A69B8A; --accent: #C4501A; --good: #2E6E42; --danger: #B3261E; }
+:root[data-theme='dunkel'] { --muted: #A39887; --faint: #7A7063; --accent: #F0803F; --good: #7FC08D; --danger: #FF8E80; }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.delta-down { color: var(--danger); }
+.day .dot, .tab { color: var(--muted); }
+.tab.active { color: var(--ink); }
+.day.done .dot { color: var(--app); }
+.btn.line { color: var(--ink-2); }
+
+.icon-btn { width: 44px; height: 44px; }
+.btn.small { min-height: 44px; }
+.seg button { min-height: 44px; }
+button.chip { min-height: 36px; padding: 0 13px; display: inline-flex; align-items: center; }
+.switch { position: relative; }
+.switch::before { content: ''; position: absolute; inset: -8px -4px; }
+#rest button { min-height: 44px; min-width: 48px; text-align: center; }
+.link { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.wk-row .sel, .wk-row .input { min-height: 44px; padding-left: 8px; }
+.wk-row, .wk-head { grid-template-columns: 24px minmax(0, 1.2fr) minmax(0, 1fr) 50px; }
+button.row-between { min-height: 36px; }
+
+/* ---------- Ziehen zum Sortieren ---------- */
+.drag { width: 40px; height: 44px; display: grid; place-items: center; color: var(--muted); touch-action: none; cursor: grab; flex: none; border-radius: 10px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.drag:active { cursor: grabbing; }
+.sorting { -webkit-user-select: none; user-select: none; }
+.sorting [data-sort] { transition: transform .16s ease; }
+.sorting [data-sort].dragging { transition: none; position: relative; z-index: 5; box-shadow: 0 12px 30px rgba(0, 0, 0, .25); opacity: .97; }
+.w-actions { flex-wrap: wrap; } .w-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; white-space: nowrap; }

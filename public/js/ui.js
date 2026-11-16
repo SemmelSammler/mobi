@@ -34,6 +34,7 @@ export const ICON = {
   plus: ic('<path d="M12 5v14M5 12h14"/>', 18, 2.3),
   search: ic('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>', 18, 2.1),
   swap: ic('<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>', 16, 2),
+  grip: ic('<circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/>', 20, 0),
   trash: ic('<path d="M5 7h14M10 7V4.5h4V7M7 7l1 12.5h8L17 7"/>', 17, 1.9),
   up: ic('<path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/>', 16, 2.2),
   trophy: ic('<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4.5c0 3 1.5 4.5 3.7 4.8M16 6h3.5c0 3-1.5 4.5-3.7 4.8M12 13v4M8.5 20h7"/>', 18, 1.9),
@@ -116,6 +117,93 @@ export function hydrateThumbs(root) {
     svg.removeAttribute('data-fig');
     if (ex) renderStatic(svg, ex, { ratio: 1, t: ex.kind === 'gym' ? 0.7 : 0 });
   }
+}
+
+// ---------- Sortieren per Ziehen ----------
+// Elemente mit [data-sort] in `list` lassen sich am Griff (.drag) verschieben.
+// onMove(von, nach) wird nach dem Loslassen aufgerufen. Pfeiltasten am Griff verschieben ebenfalls.
+export const dragHandle = (label) => `<button class="drag" aria-label="${esc(label)} verschieben: ziehen oder Pfeiltasten">${ICON.grip}</button>`;
+export function makeSortable(list, onMove) {
+  if (!list) return;
+  const items = () => [...list.children].filter((el) => el.matches('[data-sort]'));
+  list.addEventListener('keydown', (e) => {
+    const h = e.target.closest('.drag');
+    if (!h || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const all = items(), from = all.indexOf(h.closest('[data-sort]')), to = from + (e.key === 'ArrowUp' ? -1 : 1);
+    if (to >= 0 && to < all.length) onMove(from, to);
+  });
+  list.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.drag');
+    if (!handle || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const item = handle.closest('[data-sort]');
+    const all = items();
+    const from = all.indexOf(item);
+    if (from < 0) return;
+    e.preventDefault();
+    const rects = all.map((el) => el.getBoundingClientRect());
+    const gap = all.length > 1 ? Math.max(0, rects[1].top - rects[0].bottom) : 0;
+    const step = rects[from].height + gap;
+    const scroller = list.closest('#sheet') || list.closest('.overlay') || document.scrollingElement;
+    const startY = e.clientY, startScroll = scroller.scrollTop;
+    let to = from, lastY = e.clientY, raf = null;
+    list.classList.add('sorting');
+    item.classList.add('dragging');
+    try { handle.setPointerCapture(e.pointerId); } catch { /* ältere Browser */ }
+    const layout = () => {
+      const dy = lastY - startY + (scroller.scrollTop - startScroll);
+      item.style.transform = `translateY(${dy}px)`;
+      const center = rects[from].top + rects[from].height / 2 + dy;
+      to = from;
+      all.forEach((el, i) => {
+        if (i === from) return;
+        const mid = rects[i].top + rects[i].height / 2;
+        let shift = 0;
+        if (i > from && center > mid) { shift = -step; to = Math.max(to, i); }
+        if (i < from && center < mid) { shift = step; to = Math.min(to, i); }
+        el.style.transform = shift ? `translateY(${shift}px)` : '';
+      });
+    };
+    // Am oberen und unteren Rand mitscrollen
+    const auto = () => {
+      const edge = 70, h = window.innerHeight;
+      const v = lastY < edge ? -Math.ceil((edge - lastY) / 6) : lastY > h - edge ? Math.ceil((lastY - (h - edge)) / 6) : 0;
+      if (v) { scroller.scrollTop += v; layout(); }
+      raf = requestAnimationFrame(auto);
+    };
+    raf = requestAnimationFrame(auto);
+    const move = (ev) => { lastY = ev.clientY; layout(); };
+    const end = () => {
+      cancelAnimationFrame(raf);
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', end);
+      list.classList.remove('sorting');
+      item.classList.remove('dragging');
+      for (const el of all) el.style.transform = '';
+      if (to !== from) { if (navigator.vibrate) navigator.vibrate(15); onMove(from, to); }
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  });
+}
+// Hilfsfunktion: Element in einem Array von `from` nach `to` verschieben.
+export const arrayMove = (arr, from, to) => { arr.splice(to, 0, arr.splice(from, 1)[0]); return arr; };
+
+// iOS bleibt nach dem Tippen in ein Feld manchmal vergrößert: Zoom nach dem Verlassen zurücksetzen.
+export function resetZoomOnBlur() {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  const normal = meta.content;
+  document.addEventListener('focusout', (e) => {
+    if (!e.target.matches?.('input, select, textarea')) return;
+    setTimeout(() => {
+      if (document.activeElement?.matches?.('input, select, textarea')) return;
+      meta.content = `${normal}, maximum-scale=1`;
+      setTimeout(() => { meta.content = normal; }, 350);
+    }, 60);
+  });
 }
 
 // ---------- Formatierung ----------

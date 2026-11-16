@@ -1,5 +1,5 @@
 // mobi — Einstieg: Navigation, Thema, Erststart, Service Worker.
-import { $, $$, esc, ICON, on, emit, openSheet, closeSheet } from './ui.js';
+import { $, $$, esc, ICON, on, emit, openSheet, closeSheet, resetZoomOnBlur } from './ui.js';
 import { getSettings, setSetting, hasData, savePlan, getActive } from './store.js';
 import { planFromTemplate, ensurePlan } from './training.js';
 import { GOALS } from './data/programs.js';
@@ -91,6 +91,7 @@ function whatsNew() {
 
 // ---------- Start ----------
 applyTheme();
+resetZoomOnBlur();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 const fresh = !hasData();
 if (!fresh) ensurePlan();

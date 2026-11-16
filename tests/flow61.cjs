@@ -46,11 +46,27 @@ const [, , outDir = 'shots', base = 'http://127.0.0.1:8788/'] = process.argv;
       await shot('wochenstruktur'); await overflow('wochenstruktur');
       // Einheiten verschieben: Einheit 1 nach unten, „Als Nächstes“ bleibt dieselbe
       const before = await p.evaluate(() => { const pl = JSON.parse(localStorage.getItem('mobi.plan')); return { names: pl.days.map((d) => d.name), next: pl.days[pl.next || 0].name }; });
-      await p.click('[data-move="0:1"]');
-      const after = await p.evaluate(() => { const pl = JSON.parse(localStorage.getItem('mobi.plan')); return { names: pl.days.map((d) => d.name), next: pl.days[pl.next || 0].name }; });
-      assert.deepEqual(after.names.slice(0, 2), [before.names[1], before.names[0]], 'Reihenfolge getauscht');
+      // Per Ziehen am Griff: Einheit 1 unter Einheit 2 schieben
+      await p.evaluate(() => window.scrollTo(0, 0));
+      const hb = await (await p.$('#plan-days [data-sort]:nth-child(1) .drag')).boundingBox();
+      const rb = await (await p.$('#plan-days [data-sort]:nth-child(2)')).boundingBox();
+      await p.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+      await p.mouse.down();
+      await p.mouse.move(hb.x + hb.width / 2, rb.y + rb.height * 0.75, { steps: 8 });
+      await p.waitForTimeout(120); await shot('ziehen');
+      await p.mouse.up();
+      const after =await p.evaluate(() => { const pl = JSON.parse(localStorage.getItem('mobi.plan')); return { names: pl.days.map((d) => d.name), next: pl.days[pl.next || 0].name }; });
+      assert.deepEqual(after.names.slice(0, 2), [before.names[1], before.names[0]], 'Reihenfolge getauscht: ' + JSON.stringify([after.names, hb, rb]));
       assert.equal(after.next, before.next, '„Als Nächstes“ bleibt dieselbe Einheit');
       await p.evaluate(() => window.scrollTo(0, 0)); await shot('plan');
+      // Pfeiltaste am Griff schiebt zurück
+      await p.focus('#plan-days [data-sort]:nth-child(2) .drag'); await p.keyboard.press('ArrowUp');
+      const back = await p.evaluate(() => JSON.parse(localStorage.getItem('mobi.plan')).days.map((d) => d.name));
+      assert.deepEqual(back, before.names, 'Pfeiltaste stellt die Reihenfolge wieder her');
+      await p.focus('#plan-days [data-sort]:nth-child(1) .drag'); await p.keyboard.press('ArrowDown');
+      // Kein Eingabefeld unter 16 px (sonst zoomt iOS beim Antippen)
+      const small = await p.evaluate(() => [...document.querySelectorAll('input, select, textarea')].filter((el) => parseFloat(getComputedStyle(el).fontSize) < 16).map((el) => el.className));
+      assert.deepEqual(small, [], 'Eingabefelder mindestens 16 px');
       // Übung im Plan ersetzen: Vorschlag wählen
       await p.click('#view-training [data-day="0"]');
       const firstEx = await p.evaluate(() => JSON.parse(localStorage.getItem('mobi.plan')).days[0].slots[0].ex);

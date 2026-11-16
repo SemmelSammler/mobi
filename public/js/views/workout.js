@@ -1,5 +1,5 @@
 // Trainings-Logger: Sätze eintragen, Pausentimer, Übungen tauschen, Abschluss mit Rekorden.
-import { $, $$, esc, ICON, chime, emit, openSheet, closeSheet, thumb, hydrateThumbs, toast, fmtNum } from '../ui.js';
+import { $, $$, esc, ICON, chime, emit, openSheet, closeSheet, thumb, hydrateThumbs, toast, fmtNum, dragHandle, makeSortable, arrayMove } from '../ui.js';
 import { byId, EQUIP, muscleNames } from '../data/index.js';
 import { getSettings, setActive } from '../store.js';
 import { getActive, startWorkout, finishWorkout, addExercise, replaceExercise, sessionStats, alternatives, fmtKg, fmtDuration } from '../training.js';
@@ -68,18 +68,18 @@ function card(it, i) {
   const ex = byId(it.ex);
   const allDone = it.sets.length > 0 && it.sets.every((s) => s.done);
   const rest = it.target.rest >= 120 ? `${(it.target.rest / 60).toString().replace('.', ',')} min` : `${it.target.rest} s`;
-  return `<div class="w-card ${allDone ? 'done' : ''}" data-card="${i}">
+  return `<div class="w-card ${allDone ? 'done' : ''}" data-card="${i}" data-sort>
     <div class="w-ex">
       <button data-open="${ex.id}" aria-label="Übungsdetails">${thumb(ex.id)}</button>
       <button class="grow stack" data-open="${ex.id}"><span class="h3">${esc(ex.name)}</span><span class="meta">${it.target.sets} × ${it.target.reps[0]}–${it.target.reps[1]} ${ex.unit === 'sek' ? 'Sek.' : 'Wdh.'} · ${rest} Pause</span></button>
-      <button class="icon-btn clear" data-menu="${i}" aria-label="Übung bearbeiten">${ICON.swap}</button>
+      ${dragHandle(ex.name)}
     </div>
     <div class="w-hint ${it.up ? 'up' : ''}">${it.up ? ICON.up : ICON.target}<span>${esc(it.hint)}</span></div>
     <div class="sets">
       <span class="hd">#</span><span class="hd">Letztes Mal</span><span class="hd">${ex.bw ? 'Zusatz' : 'kg'}</span><span class="hd">${ex.unit === 'sek' ? 'Sek.' : 'Wdh.'}</span><span class="hd"></span>
       ${it.sets.map((_, si) => setRow(it, i, si)).join('')}
     </div>
-    <div class="w-actions"><button data-addset="${i}">+ Satz</button>${it.sets.length > 1 ? `<button data-delset="${i}">− Satz</button>` : ''}<button data-swap="${i}">${ICON.swap} Übung ersetzen</button></div>
+    <div class="w-actions"><button data-addset="${i}">+ Satz</button>${it.sets.length > 1 ? `<button data-delset="${i}">− Satz</button>` : ''}<button data-swap="${i}">${ICON.swap} Ersetzen</button><button data-menu="${i}">Mehr</button></div>
   </div>`;
 }
 
@@ -91,7 +91,7 @@ function renderWorkout() {
       <div class="grow stack"><span class="h3">${esc(session.name)}</span><span class="w-clock" id="w-clock"></span></div>
       <button class="btn small ${st.sets ? '' : 'ghost'}" id="w-finish">Beenden</button>
     </div>
-    ${session.items.length ? session.items.map(card).join('') : '<div class="empty">Noch keine Übung.<br>Füge deine erste Übung hinzu.</div>'}
+    <div class="stack gap-12" id="w-items">${session.items.length ? session.items.map(card).join('') : '<div class="empty">Noch keine Übung.<br>Füge deine erste Übung hinzu.</div>'}</div>
     <button class="btn ghost" id="w-add">${ICON.plus} Übung hinzufügen</button>
     <button class="btn line" id="w-cancel" style="color:var(--muted);">Training verwerfen</button>
   </div>`;
@@ -111,6 +111,7 @@ function paintDone() {
 
 function wire() {
   const r = root();
+  makeSortable($('#w-items'), (from, to) => { arrayMove(session.items, from, to); save(); renderWorkout(); });
   $('#w-min').onclick = minimize;
   $('#w-finish').onclick = confirmFinish;
   $('#w-add').onclick = () => pickExercise({ title: 'Übung hinzufügen', onPick: (id) => { addExercise(session, id); renderWorkout(); } });
