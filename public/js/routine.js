@@ -3,7 +3,8 @@
 // - Rest rotiert ohne Zurücklegen durch die Block-Decks (siehe store.js)
 // - Zeit-Skalierung: abends bis 2,0 (Haltezeit ist die Zielgröße),
 //   morgens max. 1,25 — mehr Zeit bedeutet dort mehr Übungen, nicht längere.
-import { EXERCISES, BLOCKS, PLAN, ABLOCKS, ABEND_PLAN, KBLOCKS, KRAFT_PLAN, ZBLOCKS, ZD_PLAN, FOCUS_TARGETS } from './data.js';
+import { BLOCKS, PLAN, ABLOCKS, ABEND_PLAN, KBLOCKS, KRAFT_PLAN, ZBLOCKS, ZD_PLAN, FOCUS_TARGETS } from './data/mobility.js';
+import { MOBILITY as EXERCISES } from './data/index.js';
 import { deckPeek, getBlacklist, getSettings } from './store.js';
 
 const KIND_CFG = {

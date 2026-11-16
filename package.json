@@ -1,11 +1,12 @@
 {
   "name": "mobi",
   "private": true,
-  "version": "5.0.0",
-  "description": "mobi — Beweglich in den Tag: tägliche Mobilitäts- und Dehnroutine (PWA)",
+  "version": "6.0.0",
+  "description": "mobi — Krafttraining mit Plan und tägliche Mobility-Routinen (PWA)",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node tests/check-data.mjs && node tests/test-logic.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

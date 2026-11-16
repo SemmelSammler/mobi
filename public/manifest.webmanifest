@@ -1,7 +1,7 @@
 {
-  "name": "mobi — Beweglich in den Tag",
+  "name": "mobi — Training & Beweglichkeit",
   "short_name": "mobi",
-  "description": "Deine tägliche Mobilitäts- und Dehnroutine",
+  "description": "Krafttraining mit Plan, tägliche Mobility-Routinen und über 130 animierte Übungen.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,8 +10,21 @@
   "theme_color": "#FAF6EF",
   "lang": "de",
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

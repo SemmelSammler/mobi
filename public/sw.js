@@ -1,16 +1,18 @@
-const VERSION = 'mobi-v5.0.0';
+// Service Worker: App-Hülle vorab cachen, danach „Cache zuerst, im Hintergrund auffrischen“.
+// WICHTIG: Bei jeder Änderung an Dateien VERSION erhöhen, sonst sehen installierte Apps alte Stände.
+const VERSION = 'mobi-v6.0.0';
 const SHELL = [
   '/',
   '/css/app.css',
-  '/js/app.js',
-  '/js/data.js',
-  '/js/figure.js',
-  '/js/routine.js',
-  '/js/store.js',
+  '/fonts/instrument-sans.woff2',
+  '/js/app.js', '/js/ui.js', '/js/store.js', '/js/routine.js', '/js/training.js',
+  '/js/figure.js', '/js/rig.js', '/js/figs.js', '/js/musclemap.js',
+  '/js/data/index.js', '/js/data/mobility.js', '/js/data/muscles.js', '/js/data/programs.js',
+  '/js/data/gym-ober.js', '/js/data/gym-unter.js', '/js/data/gym-arme.js',
+  '/js/views/heute.js', '/js/views/training.js', '/js/views/workout.js', '/js/views/player.js',
+  '/js/views/uebungen.js', '/js/views/verlauf.js', '/js/views/profil.js',
   '/manifest.webmanifest',
-  '/icons/favicon.svg',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/favicon.svg', '/icons/icon-192.png', '/icons/icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -32,7 +34,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  const cacheable = url.origin === location.origin || url.hostname.endsWith('gstatic.com') || url.hostname.endsWith('googleapis.com');
+  if (url.origin !== location.origin) return; // Fremde Adressen (z. B. YouTube) nicht anfassen
 
   // Navigation: Netz zuerst (frische Version), Cache als Offline-Fallback.
   if (e.request.mode === 'navigate') {
@@ -54,7 +56,7 @@ self.addEventListener('fetch', (e) => {
     caches.match(e.request).then((cached) => {
       const fetched = fetch(e.request)
         .then((res) => {
-          if ((res.ok || res.type === 'opaque') && cacheable) {
+          if (res.ok) {
             const copy = res.clone();
             caches.open(VERSION).then((c) => c.put(e.request, copy));
           }

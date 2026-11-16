@@ -1,67 +1,120 @@
-# mobi — Beweglich in den Tag
+# mobi — Training & Beweglichkeit
 
-> **Aus der Live-Version rekonstruiert am 16.11.2026** von https://mobi.bonni-jason.workers.dev
-> (SW-Cache-Version `mobi-v5.0.0`). Der Quellcode lag lokal nicht mehr vor.
+Version 6.0 · PWA auf Cloudflare Workers (reine statische Auslieferung, kein Server-Code)
+
+> **Herkunft:** Version 5 wurde am 16.11.2026 aus der Live-Version
+> (https://mobi.bonni-jason.workers.dev) rekonstruiert, weil der Quellcode lokal fehlte.
+> Version 6 baut darauf auf: neues Design, Krafttraining mit Plan, neue Übungsdarstellung.
+> Der erste Commit dieses Repos enthält den unveränderten rekonstruierten Stand.
 
 ## Zweck
-PWA für eine tägliche Mobilitäts- und Dehnroutine: Morgen- und Abendroutine, Endgrad-Kraft,
-„Zwischendurch“ am Schreibtisch, Fokustage, Kalender mit Serie und Sportplan, animierte Strichfiguren.
-66 Übungen in 13 Blöcken.
+Eine App für zwei Dinge:
+- **Mobility:** geführte Morgen-, Abend- und Zwischendurch-Routinen plus Endgrad-Kraft (66 Übungen).
+- **Krafttraining:** Trainingsplan als Rotation, Logger für Sätze und Gewichte, Pausentimer,
+  automatische Progression, Auswertung (72 Studio-Übungen).
+
+Jede Übung hat eine animierte Figur mit hervorgehobener Zielmuskulatur, eine Körperkarte,
+Schritt-für-Schritt-Ausführung, typische Fehler und den physiologischen Hintergrund.
 
 ## Aufbau
 ```
-public/                    ← wird 1:1 als Static Assets ausgeliefert (kein Build-Schritt)
-  index.html               App-Shell: 4 Views (Heute, Übungen, Kalender, Profil) + Tabbar, Player-Overlay, Sheet
-  css/app.css              gesamtes Styling
-  js/app.js                Einstieg (ES-Modul): Rendering der Tabs, Player, Events, SW-Registrierung
-  js/data.js               Übungsdatenbank: Blöcke, Pläne je Dauer, Übungen inkl. Posen, typische Fehler
-  js/routine.js            erzeugt die Tagesroutine (fester Kern + rotierende Decks, Zeit-Skalierung, Fokustage)
-  js/store.js              Persistenz (localStorage mit In-Memory-Fallback)
-  js/figure.js             SVG-Strichfiguren, Posen-Interpolation A↔B
-  sw.js                    Service Worker (Offline-Cache)
-  manifest.webmanifest     PWA-Manifest
-  icons/                   favicon.svg, apple-touch-icon, 192/512, maskable-512
-wrangler.jsonc             Worker-Konfiguration (reiner Assets-Worker, kein Server-Code)
-package.json               nur wrangler als Dev-Abhängigkeit
+public/                      wird 1:1 ausgeliefert (kein Build-Schritt, native ES-Module)
+  index.html                 App-Hülle
+  css/app.css                Design-System (Farb-Tokens, helles und dunkles Thema)
+  fonts/                     Instrument Sans, selbst gehostet (OFL-Lizenz liegt bei)
+  sw.js                      Service Worker (Offline-Cache)
+  js/
+    app.js                   Einstieg: Navigation, Thema, Erststart
+    ui.js                    DOM-Helfer, Icons, Sheet, Toast, Ton
+    store.js                 Speicherung (localStorage), Sicherung/Wiederherstellung
+    routine.js               baut die Mobility-Routine des Tages
+    training.js              Plan, Rotation, Progression, Rekorde, Wochenvolumen
+    rig.js                   Gelenk-Rig: Posen aus Winkeln und Zielpunkten
+    figs.js                  45 Bewegungsvorlagen für Studio-Übungen (Seiten- und Frontansicht)
+    figure.js                zeichnet und animiert die Figur samt Geräten
+    musclemap.js             Körperkarte vorn/hinten
+    data/
+      mobility.js            Mobility-Übungen (aus v5 übernommen)
+      gym-ober.js / gym-unter.js / gym-arme.js   Studio-Übungen
+      muscles.js             Muskelgruppen und Zuordnungen
+      programs.js            sechs Trainingsplan-Vorlagen
+      index.js               gemeinsamer Zugriff auf alle Übungen
+    views/                   heute, training, workout (Logger), player (Mobility),
+                             uebungen (Bibliothek + Detail), verlauf, profil
+tests/
+  check-data.mjs             Datenprüfung (Pflichtfelder, IDs, Posen, Plan-Verweise)
+  test-logic.mjs             Logiktests (Rotation, Progression, Rekorde, Sicherung)
+  shot.cjs, scenarios.cjs    Browser-Durchläufe mit Screenshots (Playwright)
+  seed.json                  Beispieldaten für die Durchläufe
+wrangler.jsonc               Worker-Konfiguration (nur Static Assets)
 ```
-Kein Framework, kein Bundler: native ES-Module im Browser.
 
 ## Datenfluss
 ```
-data.js ──► routine.js (buildRoutine: Datum, Dauer, Art) ──► app.js (Render + Player)
-                ▲                                              │
-                └──── store.js (Einstellungen, Decks, Blacklist) ◄┘ markDone / setSetting / …
+data/*  ──►  routine.js   ──►  views/player.js        (Mobility)
+        ──►  training.js  ──►  views/workout.js       (Krafttraining)
+                 ▲                    │
+                 └──── store.js ◄─────┘   Einstellungen, Plan, Verlauf
 ```
-Alles läuft im Browser. Der Worker liefert nur Dateien aus. Es gibt keine API-Aufrufe.
-Externe Quellen: Google Fonts (Instrument Sans); YouTube-Suchlinks zu den Übungen.
+Alles läuft im Browser. Es gibt keine API und keine externen Abrufe; nur die Links
+„Video-Anleitung suchen“ führen zu YouTube.
 
-## Speicherung (nur lokal im Browser, `localStorage`)
+## Speicherung (nur lokal, `localStorage`)
 | Schlüssel | Inhalt |
 |---|---|
-| `mobi.settings` | Name, Dauern, Ton, PNF, Krafttage, Fokustage, Wochen-Sportplan |
-| `mobi.history` | `{ "YYYY-MM-DD": { morgen|abend|kraft|…: {minutes, at, …} } }` (v1-Format wird migriert) |
-| `mobi.decks` | Rotations-Decks je Block (Ziehen ohne Zurücklegen) |
-| `mobi.blacklist` | ausgeblendete Übungen |
-| `mobi.assessments` | Selbsttests je Datum |
+| `mobi.settings` | Name, Thema, Dauern, Ton, Fokustage, Wochenstruktur |
+| `mobi.history` | je Tag: Routinen, Studio-Zähler, Ausdauer-Einheit (km, min) |
+| `mobi.plan` | aktiver Trainingsplan mit Einheiten, Übungen, Sätzen, Rotationszeiger |
+| `mobi.workouts` | alle geloggten Trainings mit Sätzen (Gewicht × Wiederholungen) |
+| `mobi.active` | laufendes Training (übersteht Neuladen und App-Wechsel) |
+| `mobi.decks`, `mobi.blacklist`, `mobi.assessments` | Mobility-Rotation, ausgeblendete Übungen, Beweglichkeits-Checks |
 
-⚠️ Die Daten liegen **pro Gerät und Browser**. Es gibt kein Backup und keinen Sync. Werden die Browserdaten
-gelöscht, ist auch der Verlauf weg.
+Die Schlüssel aus Version 5 sind unverändert; vorhandene Daten werden weiterverwendet.
+Im Profil gibt es **Sicherung herunterladen / einspielen** (JSON-Datei). Einen Abgleich
+zwischen Geräten gibt es noch nicht.
+
+## Trainingslogik in Kürze
+- **Rotation:** Nach jedem abgeschlossenen Training rückt der Plan eine Einheit weiter —
+  unabhängig vom Wochentag. Derselbe Plan passt so zu 3, 4 oder 5 Studiotagen.
+- **Doppelte Progression:** Erst Wiederholungen bis zur Obergrenze steigern, dann Gewicht erhöhen.
+- **Rekorde:** geschätztes Maximum nach Epley (Gewicht × (1 + Wdh./30)).
+- **Wochenvolumen:** Zielmuskel zählt 1 Satz, Hilfsmuskel 0,5; Zielbereich 10–20 Sätze.
+
+## Neue Übung anlegen
+Eintrag in `data/gym-*.js` ergänzen und per `fig: ['vorlage', { optionen }]` eine Bewegungsvorlage
+aus `figs.js` wählen. Danach `npm test` — die Datenprüfung meldet fehlende Felder.
 
 ## Lokal starten
 ```bash
 npm install
-npm run dev        # http://localhost:8787
 ```
-Hinweis: Der Service Worker wird nur unter `https:` registriert (siehe Ende von `app.js`). Lokal gibt es also
-keinen Offline-Cache, und Änderungen sind sofort sichtbar.
+```bash
+npm run dev
+```
+Die App läuft dann unter http://localhost:8787. Der Service Worker ist lokal aus
+(nur unter `https:`), Änderungen sind sofort sichtbar.
+
+## Testen
+```bash
+npm test
+```
 
 ## Deployen
 ```bash
 npx wrangler login
+```
+```bash
 npm run deploy
 ```
-Vor dem ersten Deploy:
-- `compatibility_date` in `wrangler.jsonc` mit dem Dashboard abgleichen (Wert ist geschätzt).
-- In den richtigen Cloudflare-Account deployen (der, dem die Subdomain `bonni-jason.workers.dev` gehört).
-- Nach Änderungen an Dateien `VERSION` in `public/sw.js` erhöhen. Sonst liefern installierte PWAs
-  weiter alte Dateien aus dem Cache (Stale-while-revalidate für Assets).
+Vor dem Deploy prüfen:
+- **Richtiger Cloudflare-Account** — der, dem `bonni-jason.workers.dev` gehört. In einem anderen
+  Account entsteht ein neuer Worker unter anderer Adresse, und die dort gespeicherten Daten fehlen.
+- `compatibility_date` in `wrangler.jsonc` ist geschätzt und sollte mit dem Dashboard abgeglichen werden.
+- Bei jeder Änderung `VERSION` in `public/sw.js` erhöhen, sonst zeigen installierte Apps alte Dateien.
+- Vorher am Gerät im Profil eine Sicherung herunterladen.
+
+## Offen
+- Geräte-Abgleich (Sync) und Konto
+- Geräteliste des eigenen Studios (aktuell: übliche Vollausstattung angenommen)
+- Aufwärmsätze, Supersätze und Notizen im Logger
+- Laufen bisher nur als einfacher Eintrag (Strecke, Dauer)
