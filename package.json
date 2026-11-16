@@ -1,0 +1,13 @@
+{
+  "name": "mobi",
+  "private": true,
+  "version": "5.0.0",
+  "description": "mobi — Beweglich in den Tag: tägliche Mobilitäts- und Dehnroutine (PWA)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

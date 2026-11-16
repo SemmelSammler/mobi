@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>mobi — Beweglich in den Tag</title>
+  <meta name="description" content="Deine tägliche Mobilitäts- und Dehnroutine">
+  <meta name="theme-color" content="#FAF6EF">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="mobi">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div id="app">
+    <main id="main">
+      <section id="view-heute" class="view"></section>
+      <section id="view-uebungen" class="view hidden"></section>
+      <section id="view-kalender" class="view hidden"></section>
+      <section id="view-profil" class="view hidden"></section>
+    </main>
+    <nav id="tabbar" aria-label="Hauptnavigation">
+      <button class="tab active" data-view="heute">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8"></path></svg>
+        <span>Heute</span>
+      </button>
+      <button class="tab" data-view="uebungen">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7.2" height="7.2" rx="2"></rect><rect x="13.3" y="3.5" width="7.2" height="7.2" rx="2"></rect><rect x="3.5" y="13.3" width="7.2" height="7.2" rx="2"></rect><rect x="13.3" y="13.3" width="7.2" height="7.2" rx="2"></rect></svg>
+        <span>Übungen</span>
+      </button>
+      <button class="tab" data-view="kalender">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+        <span>Kalender</span>
+      </button>
+      <button class="tab" data-view="profil">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.6"></circle><path d="M5 20c.6-3.3 3.4-5.2 7-5.2s6.4 1.9 7 5.2"></path></svg>
+        <span>Profil</span>
+      </button>
+    </nav>
+  </div>
+  <div id="player" class="overlay hidden"></div>
+  <div id="sheet-backdrop" class="sheet-backdrop hidden">
+    <div id="sheet" class="sheet" role="dialog"></div>
+  </div>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
